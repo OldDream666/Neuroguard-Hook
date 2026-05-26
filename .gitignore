@@ -1,0 +1,27 @@
+# Compiler output
+/out/
+/cache/
+/broadcast/
+
+# Dependencies
+/node_modules/
+# lib/ is committed as git submodules (required by forge)
+
+# Environment files (NEVER commit secrets!)
+.env
+.env.*
+!.env.example
+!.env.deploy
+
+# AI Agent
+ai-agent/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

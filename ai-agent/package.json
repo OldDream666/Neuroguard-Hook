@@ -1,0 +1,20 @@
+{
+  "name": "neuroguard-ai-agent",
+  "version": "1.0.0",
+  "description": "NeuroGuard Hook — Off-Chain AI Sentiment Agent for X Layer",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "loop": "node index.js --loop 60",
+    "dry-run": "node index.js --dry-run",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["uniswap-v4", "hook", "ai-agent", "xlayer", "defi"],
+  "author": "NeuroGuard Team",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "ethers": "^6.16.0"
+  }
+}
