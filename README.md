@@ -251,9 +251,8 @@ We chose **X Layer** specifically because:
 ### 1. Clone & Build
 
 ```bash
-git clone https://github.com/your-org/neuroguard-hook.git
-cd neuroguard-hook
-forge install
+git clone https://github.com/OldDream666/Neuroguard-Hook.git
+cd Neuroguard-Hook
 forge build
 ```
 
@@ -292,25 +291,31 @@ forge verify-contract <HOOK_ADDRESS> src/NeuroGuardHook.sol:NeuroGuardHook \
 
 ## 🤖 AI Agent
 
+The AI Agent monitors market conditions and updates the on-chain risk score. **Without it, only Layer 1 (sniper protection) works.** With it, Layer 2 (AI-driven dynamic fees) activates.
+
 ### Python Version
 
 ```bash
 cd script
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env: set PRIVATE_KEY, HOOK_ADDRESS
+# Edit .env with your values:
+#   PRIVATE_KEY=0x...           (AI Agent wallet private key)
+#   HOOK_ADDRESS=0x595ac5...    (deployed Hook address)
+#   TOKEN_ID=ETH-USDT           (OKX instrument ID to monitor)
+#   LLM_API_KEY=sk-xxx          (optional: for LLM enhancement)
 
 # Run once
-python ai_agent.py
+python3 ai_agent.py
 
 # Loop every 60 seconds
-python ai_agent.py --loop 60
+python3 ai_agent.py --loop 60
 
 # Dry run (score only, no tx)
-python ai_agent.py --dry-run
+python3 ai_agent.py --dry-run
 
 # Manual override
-python ai_agent.py --score 7
+python3 ai_agent.py --score 7
 ```
 
 ### Node.js Version

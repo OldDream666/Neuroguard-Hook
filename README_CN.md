@@ -255,9 +255,9 @@ if (riskScore >= 7) {
 ### 1. 克隆 & 编译
 
 ```bash
-git clone https://github.com/your-org/neuroguard-hook.git
-cd neuroguard-hook
-forge install
+git clone https://github.com/OldDream666/Neuroguard-Hook.git
+cd Neuroguard-Hook
+
 forge build
 ```
 
