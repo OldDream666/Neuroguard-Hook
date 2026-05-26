@@ -223,7 +223,7 @@ Scoring guide:
         "model": LLM_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
-        "max_tokens": 100,
+        "max_tokens": 500,
     }
 
     try:
@@ -231,10 +231,23 @@ Scoring guide:
         resp.raise_for_status()
         data = resp.json()
 
-        content = data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
+        # Handle reasoning models (MiMo, DeepSeek R1, etc.)
+        # reasoning_content = thinking process, content = final answer
+        content = msg.get("content") or msg.get("reasoning_content") or ""
+        if not content:
+            log.warning("⚠️  LLM returned empty response")
+            return None
+
         # Extract JSON from response (handle markdown code blocks)
         import re
+        # Try to find JSON in the response
         json_match = re.search(r'\{[^}]+\}', content)
+        if not json_match:
+            # Try reasoning_content for reasoning models
+            reasoning = msg.get("reasoning_content", "")
+            json_match = re.search(r'\{[^}]+\}', reasoning)
+
         if json_match:
             result = json.loads(json_match.group())
             score = min(10, max(0, int(result.get("risk_score", 5))))
