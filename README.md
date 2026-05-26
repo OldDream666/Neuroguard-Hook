@@ -115,12 +115,11 @@ After launch, the threat shifts from snipers to **coordinated FUD attacks** and 
 
 #### 🔗 Off-Chain: Real-Time Market Monitoring Agent
 
-A Python/Node.js agent fetches **real market data from CoinGecko** (free, no API key needed):
+A Python/Node.js agent fetches **real market data from OKX** (free, no API key needed):
 
 | Signal | Weight | Source | Description |
 |:-------|:------:|:------:|:------------|
-| 📉 24h Price Change | 70% | CoinGecko API | Price drop magnitude → risk level |
-| 📈 Volume Spike | 30% | CoinGecko API | Current vs 7d avg volume (high volume + dump = panic) |
+| 📉 24h Price Change | 100% | OKX API | Price drop magnitude → risk level |
 
 **Risk Thresholds (based on real 24h price change):**
 
@@ -334,14 +333,14 @@ node index.js --dry-run
 
 ### Data Source
 
-Both agents use **real market data from CoinGecko** (free, no API key):
+Both agents use **real market data from OKX** (free, no API key, no rate limit):
 
-- **Primary signal**: 24h price change → mapped to risk score 0-10
-- **Secondary signal**: Volume spike vs 7-day average (amplifies risk during panic selling)
+- **Signal**: 24h price change (calculated from `last` vs `open24h`) → mapped to risk score 0-10
+
 
 To monitor a different token, set `TOKEN_ID` in `.env`:
 ```
-# CoinGecko token IDs: ethereum, bitcoin, solana, dogecoin, pepe, shiba-inu
+# OKX instrument IDs: ETH-USDT, BTC-USDT, SOL-USDT, DOGE-USDT, PEPE-USDT, SHIB-USDT
 TOKEN_ID=pepe
 ```
 

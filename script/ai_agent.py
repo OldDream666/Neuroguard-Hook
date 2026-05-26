@@ -48,9 +48,9 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY", "")
 HOOK_ADDRESS = os.getenv("HOOK_ADDRESS", "")
 CHAIN_ID = int(os.getenv("CHAIN_ID", "1952"))
 
-# Token to monitor (CoinGecko ID)
-# Common: ethereum, bitcoin, solana, dogecoin, pepe, shiba-inu
-TOKEN_ID = os.getenv("TOKEN_ID", "ethereum")
+# Token to monitor (OKX instrument ID)
+# Common: ETH-USDT, BTC-USDT, SOL-USDT, DOGE-USDT, PEPE-USDT, SHIB-USDT
+TOKEN_ID = os.getenv("TOKEN_ID", "ETH-USDT")
 
 # ──────────────────────────────────────────────
 #  Minimal ABI (only what we need)
@@ -81,7 +81,7 @@ HOOK_ABI = [
 
 
 # ═══════════════════════════════════════════════
-#  Real Market Data — CoinGecko (Free, No API Key)
+#  Real Market Data — OKX Public API (No API Key)
 # ═══════════════════════════════════════════════
 
 SENTIMENT_LABELS = {
@@ -92,84 +92,67 @@ SENTIMENT_LABELS = {
 }
 
 
-def fetch_market_data(token_id: str) -> dict | None:
+def fetch_market_data(inst_id: str) -> dict | None:
     """
-    Fetch real market data from CoinGecko free API.
-    Returns dict with: price, 24h_change, 24h_volume, market_cap.
+    Fetch real market data from OKX public API (no API key needed).
+    Returns dict with: price, change_24h, volume_24h, high_24h, low_24h.
+
+    API: https://www.okx.com/api/v5/market/ticker?instId=ETH-USDT
     """
-    url = "https://api.coingecko.com/api/v3/simple/price"
-    params = {
-        "ids": token_id,
-        "vs_currencies": "usd",
-        "include_24hr_change": "true",
-        "include_24hr_vol": "true",
-        "include_market_cap": "true",
-    }
+    url = "https://www.okx.com/api/v5/market/ticker"
+    params = {"instId": inst_id}
 
     try:
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
 
-        if token_id not in data:
-            log.error("Token '%s' not found in CoinGecko response", token_id)
+        if data.get("code") != "0" or not data.get("data"):
+            log.error("OKX API error: %s", data.get("msg", "unknown"))
             return None
 
-        token_data = data[token_id]
+        ticker = data["data"][0]
+
+        last = float(ticker["last"])
+        open_24h = float(ticker["open24h"])
+        vol_24h = float(ticker["volCcy24h"])  # volume in USDT
+        high_24h = float(ticker["high24h"])
+        low_24h = float(ticker["low24h"])
+
+        # Calculate 24h change percentage
+        change_24h = ((last - open_24h) / open_24h) * 100 if open_24h > 0 else 0
+
         return {
-            "price_usd": token_data.get("usd", 0),
-            "change_24h": token_data.get("usd_24h_change", 0),  # percentage
-            "volume_24h": token_data.get("usd_24h_vol", 0),
-            "market_cap": token_data.get("usd_market_cap", 0),
+            "price_usd": last,
+            "change_24h": change_24h,
+            "volume_24h": vol_24h,
+            "high_24h": high_24h,
+            "low_24h": low_24h,
         }
     except requests.RequestException as e:
-        log.error("Failed to fetch CoinGecko data: %s", e)
+        log.error("Failed to fetch OKX data: %s", e)
         return None
 
 
-def fetch_historical_volume(token_id: str) -> float:
+def compute_risk_score(market: dict) -> int:
     """
-    Fetch 7-day average volume to compare against current volume.
-    Returns average daily volume in USD.
-    """
-    url = f"https://api.coingecko.com/api/v3/coins/{token_id}/market_chart"
-    params = {"vs_currency": "usd", "days": "7", "interval": "daily"}
+    Compute risk score 0-10 from real market data.
 
-    try:
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        volumes = [v[1] for v in data.get("total_volumes", [])]
-        if volumes:
-            return sum(volumes) / len(volumes)
-        return 0
-    except requests.RequestException:
-        return 0
-
-
-def compute_risk_score(market: dict, avg_volume: float) -> int:
-    """
-    Compute risk score 0-10 from real market signals.
-
-    Signals:
-      1. 24h price change (negative = bearish)  — weight 70%
-      2. Volume spike (high volume + drop = panic selling) — weight 30%
+    Signal: 24h price change (negative = bearish)
 
     Scoring:
-      price_change  → risk contribution
-      -3% ~ 0%      → 0-2   (calm)
-      -7% ~ -3%     → 2-4   (cautious)
-      -15% ~ -7%    → 4-7   (fear)
-      < -15%         → 7-10  (panic)
-      positive       → 0-2   (bullish, low risk)
+      positive       → 0     (bullish, no risk)
+      0% ~ -2%       → 0-2   (calm)
+      -2% ~ -5%      → 2-4   (cautious)
+      -5% ~ -10%     → 4-7   (fear)
+      < -10%         → 7-10  (panic)
     """
-    change = market["change_24h"]  # e.g. -5.2 means -5.2%
+    change = market["change_24h"]
 
-    # ── Signal 1: Price change → risk ──
     if change >= 0:
         price_risk = 0  # bullish, no risk
     elif change >= -2:
-        price_risk = abs(change) / 2 * 2        # 0-2
+        price_risk = abs(change) / 2 * 2            # 0-2
     elif change >= -5:
         price_risk = 2 + (abs(change) - 2) / 3 * 2  # 2-4
     elif change >= -10:
@@ -177,52 +160,30 @@ def compute_risk_score(market: dict, avg_volume: float) -> int:
     else:
         price_risk = min(10, 7 + (abs(change) - 10) / 10 * 3)  # 7-10
 
-    # ── Signal 2: Volume spike multiplier ──
-    volume_multiplier = 1.0
-    if avg_volume > 0 and market["volume_24h"] > 0:
-        ratio = market["volume_24h"] / avg_volume
-        if ratio > 3.0:
-            volume_multiplier = 1.5   # massive volume spike during dump
-        elif ratio > 2.0:
-            volume_multiplier = 1.3
-        elif ratio > 1.5:
-            volume_multiplier = 1.1
-        # Low volume dump is less concerning
-        elif ratio < 0.5:
-            volume_multiplier = 0.8
-
-    # ── Final score ──
-    raw_score = price_risk * volume_multiplier
-    risk_score = min(10, max(0, round(raw_score)))
-
+    risk_score = min(10, max(0, round(price_risk)))
     return risk_score
 
 
 def analyze_market() -> int:
     """
-    Full pipeline: fetch real data → compute risk → return score.
-    This replaces the old simulate_ai_sentiment() with real market analysis.
+    Full pipeline: fetch OKX data → compute risk → return score.
     """
-    log.info("📡 Fetching market data for '%s' from CoinGecko...", TOKEN_ID)
+    log.info("📡 Fetching market data for '%s' from OKX...", TOKEN_ID)
 
     market = fetch_market_data(TOKEN_ID)
     if market is None:
         log.warning("⚠️  Could not fetch market data, defaulting to risk=0")
         return 0
 
-    # Fetch 7-day average volume for comparison
-    avg_vol = fetch_historical_volume(TOKEN_ID)
-
     # Log the real data
     log.info("💰 Price: $%s", f"{market['price_usd']:,.2f}")
     log.info("📊 24h Change: %s%%", f"{market['change_24h']:+.2f}")
     log.info("📈 24h Volume: $%s", f"{market['volume_24h']:,.0f}")
-    if avg_vol > 0:
-        vol_ratio = market['volume_24h'] / avg_vol
-        log.info("📉 7d Avg Volume: $%s (current/avg = %.2fx)", f"{avg_vol:,.0f}", vol_ratio)
+    log.info("📉 24h Range: $%s — $%s",
+             f"{market['low_24h']:,.2f}", f"{market['high_24h']:,.2f}")
 
     # Compute risk
-    risk_score = compute_risk_score(market, avg_vol)
+    risk_score = compute_risk_score(market)
 
     # Label
     label = "UNKNOWN"

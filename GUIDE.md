@@ -60,7 +60,7 @@ neuroguard-hook/
 │
 ├── script/
 │   ├── Deploy.s.sol              ← 部署脚本（一键部署到区块链）
-│   ├── ai_agent.py               ← ⭐ Python 版 AI Agent（CoinGecko 真实数据）
+│   ├── ai_agent.py               ← ⭐ Python 版 AI Agent（OKX 真实数据）
 │   ├── requirements.txt          ← Python 依赖
 │   └── .env                      ← 你的私钥配置（不要提交到 git！）
 │
@@ -104,7 +104,7 @@ neuroguard-hook/
 
 这是「链下大脑」。它是一个 Python 脚本，做三件事：
 
-   **① 模拟 AI 打分**：通过 CoinGecko API 获取真实市场数据（24h 价格变化、交易量），加权计算出 0-10 的风险分
+   **① 模拟 AI 打分**：通过 OKX API 获取真实市场数据（24h 价格变化），加权计算出 0-10 的风险分
 2. **检查链上状态**：读取合约当前的 `riskScore`
 3. **发送交易**：如果分数变了，调用合约的 `setRiskLevel()` 更新链上状态
 
@@ -202,7 +202,7 @@ python ai_agent.py --score 0    # 恢复正常
 A: 不需要改。合约已经编译部署好了。如果你真的想改，修改 `src/NeuroGuardHook.sol` 后需要重新 `forge build` 和重新部署。
 
    ### Q: AI Agent 的「AI」是真的 AI 吗？
-   A: **是真实的市场数据分析。** 它通过 CoinGecko API 获取实时价格和交易量，基于 24h 涨跌幅和交易量异常计算风险分。代码里还有 OpenAI GPT-4o-mini 的调用模板（已注释），取消注释可接入 LLM 做更丰富的情绪分析。
+   A: **是真实的市场数据分析。** 它通过 OKX API 获取实时价格和交易量，基于 24h 涨跌幅计算风险分。代码里还有 OpenAI GPT-4o-mini 的调用模板（已注释），取消注释可接入 LLM 做更丰富的情绪分析。
 
 ### Q: 90% 手续费去哪了？
 A: 手续费沉淀在 Uniswap V4 的池子里，成为**协议控制的公共流动性 (POL)**，实际上是在帮所有交易者加深池子深度。

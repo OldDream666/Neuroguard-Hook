@@ -120,12 +120,11 @@ if (block.number <= poolCreationBlock + SNIPER_WINDOW) {
 
 #### 🔗 链下：实时市场监控 Agent
 
-Python/Node.js Agent 从 **CoinGecko 获取真实市场数据**（免费，无需 API Key）：
+Python/Node.js Agent 从 **OKX 获取真实市场数据**（免费，无需 API Key）：
 
 | 信号 | 权重 | 数据源 | 说明 |
 |:-----|:----:|:------:|:-----|
-| 📉 24h 价格变化 | 70% | CoinGecko API | 跌幅大小 → 风险等级 |
-| 📈 交易量异常 | 30% | CoinGecko API | 当前量 vs 7天均量（放量暴跌 = 恐慌） |
+| 📉 24h 价格变化 | 100% | OKX API | 跌幅大小 → 风险等级 |
 
 **风险阈值（基于真实 24h 价格变化）：**
 
@@ -328,14 +327,14 @@ node index.js --dry-run
 
 ### 数据源
 
-两个版本均使用 **CoinGecko 真实市场数据**（免费，无需 API Key）：
+两个版本均使用 **OKX 官方公开 API**（免费，无需 API Key，无限速）：
 
-- **主信号**：24h 价格变化 → 映射为风险评分 0-10
-- **辅助信号**：交易量 vs 7 天均量（恐慌抛售时放量会放大风险）
+- **信号**：24h 价格变化（由 `last` 与 `open24h` 计算）→ 映射为风险评分 0-10
+
 
 监控不同代币，在 `.env` 中设置 `TOKEN_ID`：
 ```
-# CoinGecko 代币 ID：ethereum, bitcoin, solana, dogecoin, pepe, shiba-inu
+# OKX 交易对 ID：ETH-USDT, BTC-USDT, SOL-USDT, DOGE-USDT, PEPE-USDT, SHIB-USDT
 TOKEN_ID=pepe
 ```
 
