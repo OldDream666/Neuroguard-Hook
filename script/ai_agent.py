@@ -193,26 +193,8 @@ def analyze_with_llm(market: dict) -> int | None:
 
     log.info("🤖 Calling LLM (%s @ %s)...", LLM_MODEL, LLM_API_URL.split("/v1")[0])
 
-    prompt = f"""Analyze the following crypto market data and assess the risk level.
-
-Market Data:
-- Token: {TOKEN_ID}
-- Current Price: ${market['price_usd']:,.2f}
-- 24h Change: {market['change_24h']:+.2f}%
-- 24h Volume: ${market['volume_24h']:,.0f}
-- 24h High: ${market['high_24h']:,.2f}
-- 24h Low: ${market['low_24h']:,.2f}
-
-Based on this data, assess the risk of a sudden price crash or panic selling in the next few hours.
-
-Return ONLY a JSON object with this exact format:
-{{"risk_score": <integer 0-10>, "reason": "<brief explanation>"}}
-
-Scoring guide:
-- 0-2: Calm, normal trading conditions
-- 3-4: Cautious, mild concern
-- 5-7: Fear, significant negative momentum
-- 8-10: Panic, extreme FUD, high crash risk"""
+    prompt = f"""Rate crash risk for {TOKEN_ID}: price ${market['price_usd']:,.4f}, 24h {market['change_24h']:+.2f}%, vol ${market['volume_24h']:,.0f}.
+Reply ONLY: {{"risk_score": <0-10>, "reason": "<5 words>"}}"""
 
     headers = {
         "Content-Type": "application/json",
@@ -223,29 +205,22 @@ Scoring guide:
         "model": LLM_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
-        "max_tokens": 500,
+        "max_tokens": 1500,
     }
 
     try:
-        resp = requests.post(LLM_API_URL, json=payload, headers=headers, timeout=30)
+        resp = requests.post(LLM_API_URL, json=payload, headers=headers, timeout=60)
         resp.raise_for_status()
         data = resp.json()
 
         msg = data["choices"][0]["message"]
-        # Handle reasoning models (MiMo, DeepSeek R1, etc.)
-        # reasoning_content = thinking process, content = final answer
-        content = msg.get("content") or msg.get("reasoning_content") or ""
-        if not content:
-            log.warning("⚠️  LLM returned empty response")
-            return None
+        content = msg.get("content") or ""
+        reasoning = msg.get("reasoning_content") or ""
 
-        # Extract JSON from response (handle markdown code blocks)
+        # Try to extract JSON from content first, then reasoning
         import re
-        # Try to find JSON in the response
         json_match = re.search(r'\{[^}]+\}', content)
         if not json_match:
-            # Try reasoning_content for reasoning models
-            reasoning = msg.get("reasoning_content", "")
             json_match = re.search(r'\{[^}]+\}', reasoning)
 
         if json_match:
