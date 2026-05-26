@@ -53,6 +53,15 @@ CHAIN_ID = int(os.getenv("CHAIN_ID", "1952"))
 TOKEN_ID = os.getenv("TOKEN_ID", "ETH-USDT")
 
 # ──────────────────────────────────────────────
+#  LLM Enhancement (Optional)
+# ──────────────────────────────────────────────
+# Set LLM_API_KEY to enable LLM-based sentiment analysis.
+# Supports any OpenAI-compatible API (OpenAI, Anthropic via proxy, local LLM, etc.)
+LLM_API_URL = os.getenv("LLM_API_URL", "https://api.openai.com/v1/chat/completions")
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+
+# ──────────────────────────────────────────────
 #  Minimal ABI (only what we need)
 # ──────────────────────────────────────────────
 HOOK_ABI = [
@@ -164,9 +173,87 @@ def compute_risk_score(market: dict) -> int:
     return risk_score
 
 
+# ═══════════════════════════════════════════════
+#  LLM-Enhanced Analysis (Optional)
+# ═══════════════════════════════════════════════
+
+def analyze_with_llm(market: dict) -> int | None:
+    """
+    Use an LLM to assess market risk. Returns risk score 0-10, or None if disabled/failed.
+
+    Supports any OpenAI-compatible chat API:
+      - OpenAI:       https://api.openai.com/v1/chat/completions
+      - Anthropic:    https://api.anthropic.com/v1/messages (via proxy)
+      - Local LLM:    http://localhost:11434/v1/chat/completions (Ollama)
+      - DeepSeek:     https://api.deepseek.com/v1/chat/completions
+      - Groq:         https://api.groq.com/openai/v1/chat/completions
+    """
+    if not LLM_API_KEY:
+        return None
+
+    log.info("🤖 Calling LLM (%s @ %s)...", LLM_MODEL, LLM_API_URL.split("/v1")[0])
+
+    prompt = f"""Analyze the following crypto market data and assess the risk level.
+
+Market Data:
+- Token: {TOKEN_ID}
+- Current Price: ${market['price_usd']:,.2f}
+- 24h Change: {market['change_24h']:+.2f}%
+- 24h Volume: ${market['volume_24h']:,.0f}
+- 24h High: ${market['high_24h']:,.2f}
+- 24h Low: ${market['low_24h']:,.2f}
+
+Based on this data, assess the risk of a sudden price crash or panic selling in the next few hours.
+
+Return ONLY a JSON object with this exact format:
+{{"risk_score": <integer 0-10>, "reason": "<brief explanation>"}}
+
+Scoring guide:
+- 0-2: Calm, normal trading conditions
+- 3-4: Cautious, mild concern
+- 5-7: Fear, significant negative momentum
+- 8-10: Panic, extreme FUD, high crash risk"""
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {LLM_API_KEY}",
+    }
+
+    payload = {
+        "model": LLM_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": 100,
+    }
+
+    try:
+        resp = requests.post(LLM_API_URL, json=payload, headers=headers, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        content = data["choices"][0]["message"]["content"]
+        # Extract JSON from response (handle markdown code blocks)
+        import re
+        json_match = re.search(r'\{[^}]+\}', content)
+        if json_match:
+            result = json.loads(json_match.group())
+            score = min(10, max(0, int(result.get("risk_score", 5))))
+            reason = result.get("reason", "no reason provided")
+            log.info("🤖 LLM Assessment: %d/10 — %s", score, reason)
+            return score
+        else:
+            log.warning("⚠️  LLM response not parseable: %s", content[:100])
+            return None
+
+    except Exception as e:
+        log.warning("⚠️  LLM call failed: %s", e)
+        return None
+
+
 def analyze_market() -> int:
     """
     Full pipeline: fetch OKX data → compute risk → return score.
+    If LLM_API_KEY is set, uses LLM for assessment; otherwise uses algorithm.
     """
     log.info("📡 Fetching market data for '%s' from OKX...", TOKEN_ID)
 
@@ -182,8 +269,11 @@ def analyze_market() -> int:
     log.info("📉 24h Range: $%s — $%s",
              f"{market['low_24h']:,.2f}", f"{market['high_24h']:,.2f}")
 
-    # Compute risk
-    risk_score = compute_risk_score(market)
+    # Try LLM first, fall back to algorithm
+    risk_score = analyze_with_llm(market)
+    if risk_score is None:
+        log.info("🧮 Using algorithmic risk scoring")
+        risk_score = compute_risk_score(market)
 
     # Label
     label = "UNKNOWN"

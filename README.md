@@ -346,12 +346,22 @@ TOKEN_ID=pepe
 
 ### Optional: LLM Enhancement
 
-Both versions include commented-out **OpenAI GPT-4o-mini** integration for richer sentiment analysis:
+Both agents support **any OpenAI-compatible LLM API** for richer sentiment analysis:
 
-```python
-# In ai_agent.py, uncomment the simulate_llm_sentiment() function
-# Set OPENAI_API_KEY in .env
+```bash
+# In .env, set these three variables:
+LLM_API_URL=https://api.openai.com/v1/chat/completions
+LLM_API_KEY=*** LLM_MODEL=gpt-4o-mini
 ```
+
+Supported providers (any OpenAI-compatible API):
+- **OpenAI**: `https://api.openai.com/v1/chat/completions`
+- **DeepSeek**: `https://api.deepseek.com/v1/chat/completions`
+- **Groq**: `https://api.groq.com/openai/v1/chat/completions`
+- **Ollama (local)**: `http://localhost:11434/v1/chat/completions`
+- **Any proxy/custom endpoint**
+
+When `LLM_API_KEY` is set, the agent uses the LLM for risk assessment. Otherwise, it falls back to the built-in algorithm.
 
 ---
 

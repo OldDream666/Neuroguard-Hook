@@ -340,12 +340,22 @@ TOKEN_ID=pepe
 
 ### 可选：接入 LLM 增强
 
-两个版本都包含已注释的 **OpenAI GPT-4o-mini** 集成代码，可用于更丰富的情绪分析：
+两个版本均支持**任意 OpenAI 兼容的 LLM API**，用于更丰富的情绪分析：
 
-```python
-# 在 ai_agent.py 中，取消注释 simulate_llm_sentiment() 函数
-# 在 .env 中设置 OPENAI_API_KEY
+```bash
+# 在 .env 中设置以下三个变量：
+LLM_API_URL=https://api.openai.com/v1/chat/completions
+LLM_API_KEY=*** LLM_MODEL=gpt-4o-mini
 ```
+
+支持的供应商（任何 OpenAI 兼容 API）：
+- **OpenAI**：`https://api.openai.com/v1/chat/completions`
+- **DeepSeek**：`https://api.deepseek.com/v1/chat/completions`
+- **Groq**：`https://api.groq.com/openai/v1/chat/completions`
+- **Ollama（本地）**：`http://localhost:11434/v1/chat/completions`
+- **任意代理/自定义端点**
+
+设置 `LLM_API_KEY` 后，Agent 会使用 LLM 进行风险评估。未设置时自动使用内置算法。
 
 ---
 
