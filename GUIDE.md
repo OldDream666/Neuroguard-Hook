@@ -56,7 +56,7 @@ neuroguard-hook/
 │   └── HookMiner.sol             ← 辅助工具：挖一个合法的合约地址
 │
 ├── test/
-│   └── NeuroGuardHook.t.sol      ← 测试文件（13 个测试用例）
+│   └── NeuroGuardHook.t.sol      ← 测试文件（18 个测试用例）
 │
 ├── script/
 │   ├── Deploy.s.sol              ← 部署脚本（一键部署到区块链）
@@ -117,7 +117,7 @@ AI Agent 工作循环：
 
 ### 📄 `test/NeuroGuardHook.t.sol` — 测试文件（273 行）
 
-包含 13 个测试用例，覆盖所有核心场景：
+包含 18 个测试用例，覆盖所有核心场景：
 
 | 测试 | 验证什么 |
 |------|---------|
@@ -152,7 +152,7 @@ cd ~/neuroguard-hook
 ~/.foundry/bin/forge test -vvvv
 ```
 
-这会在本地模拟器上运行 13 个测试，验证所有逻辑是否正确。不需要网络，不需要 gas 费。
+这会在本地模拟器上运行 18 个测试，验证所有逻辑是否正确。不需要网络，不需要 gas 费。
 
 ### ✅ 2. 运行 AI Agent（干跑模式，不发交易）
 
